@@ -63,9 +63,30 @@ import UIKit
     }
   }
 
+  private var pendingAnimatedPage: Int?
+  private var isKeyboardHiding = false
+  private var keyboardHideDuration = 0.25
+
   @objc public convenience init(delegate: PagerViewProviderDelegate) {
     self.init()
     self.delegate = delegate
+    let center = NotificationCenter.default
+    center.addObserver(self, selector: #selector(keyboardWillHide(_:)), name: UIResponder.keyboardWillHideNotification, object: nil)
+    center.addObserver(self, selector: #selector(keyboardDidHide), name: UIResponder.keyboardDidHideNotification, object: nil)
+  }
+
+  @objc private func keyboardWillHide(_ notification: Notification) {
+    isKeyboardHiding = true
+    if let duration = notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double {
+      keyboardHideDuration = duration
+    }
+  }
+
+  @objc private func keyboardDidHide() {
+    isKeyboardHiding = false
+    DispatchQueue.main.async { [weak self] in
+      self?.slideToPendingPage()
+    }
   }
 
   @objc(insertChild:atIndex:)
@@ -169,12 +190,47 @@ import UIKit
   }
 
   private func setPage(index: Int, animated: Bool) {
-    if animated {
-      withAnimation {
+    pendingAnimatedPage = nil
+    guard animated, props.children.indices.contains(index) else {
+      props.resignFirstResponder(outsidePage: index)
+      if animated {
+        withAnimation {
+          props.currentPage = index
+        }
+      } else {
         props.currentPage = index
       }
-    } else {
-      props.currentPage = index
+      return
+    }
+
+    pendingAnimatedPage = index
+    isKeyboardHiding = false
+    guard props.resignFirstResponder(outsidePage: index) else {
+      slideToPendingPage()
+      return
+    }
+
+    DispatchQueue.main.async { [weak self] in
+      guard let self else {
+        return
+      }
+      guard self.isKeyboardHiding else {
+        self.slideToPendingPage()
+        return
+      }
+      DispatchQueue.main.asyncAfter(deadline: .now() + self.keyboardHideDuration + 0.25) { [weak self] in
+        self?.slideToPendingPage()
+      }
+    }
+  }
+
+  private func slideToPendingPage() {
+    guard let page = pendingAnimatedPage else {
+      return
+    }
+    pendingAnimatedPage = nil
+    withAnimation {
+      props.currentPage = props.children.isEmpty ? page : min(page, props.children.count - 1)
     }
   }
 

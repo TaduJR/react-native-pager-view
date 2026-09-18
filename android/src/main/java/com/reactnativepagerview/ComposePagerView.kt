@@ -5,6 +5,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
+import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.LocalOverscrollConfiguration
@@ -421,6 +422,7 @@ class ComposePagerView(context: Context) : FrameLayout(context) {
     if (selectedPage < 0 || selectedPage >= pages.size) {
       return
     }
+    clearFocusOutsidePage(selectedPage)
     scrollCommandState.value = ScrollCommand(
       id = nextScrollCommandId++,
       page = selectedPage,
@@ -507,6 +509,7 @@ class ComposePagerView(context: Context) : FrameLayout(context) {
           .drop(1)
           .collect { page ->
             currentPage = page
+            clearFocusOutsidePage(page)
             dispatchPageSelected(page)
           }
       }
@@ -607,6 +610,31 @@ class ComposePagerView(context: Context) : FrameLayout(context) {
         LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
       )
     }
+  }
+
+  private fun clearFocusOutsidePage(page: Int) {
+    val focusedView = rootView.findFocus() ?: return
+    val focusedPage = pageIndexOf(focusedView)
+    if (focusedPage < 0 || focusedPage == page) {
+      return
+    }
+    val windowToken = focusedView.windowToken
+    focusedView.clearFocus()
+    val inputMethodManager =
+      context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+    inputMethodManager?.hideSoftInputFromWindow(windowToken, 0)
+  }
+
+  private fun pageIndexOf(view: View): Int {
+    var node: View? = view
+    while (node != null) {
+      val index = pages.indexOf(node)
+      if (index >= 0) {
+        return index
+      }
+      node = node.parent as? View
+    }
+    return -1
   }
 
   private fun composePageToPageScroll(

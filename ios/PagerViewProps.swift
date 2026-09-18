@@ -32,4 +32,33 @@ class PagerViewProps: ObservableObject {
   @Published var keyboardDismissMode: UIScrollView.KeyboardDismissMode = .none
   @Published var layoutDirection: PagerLayoutDirection = .ltr
   @Published var orientation: UICollectionView.ScrollDirection = .horizontal
+
+  func page(atScrollPosition position: Int) -> Int {
+    layoutDirection == .rtl ? children.count - 1 - position : position
+  }
+
+  @discardableResult
+  func resignFirstResponder(outsidePage page: Int) -> Bool {
+    guard children.indices.contains(page) else {
+      return false
+    }
+    for (index, child) in children.enumerated() where index != page {
+      if let responder = firstResponder(in: child.view) {
+        return responder.resignFirstResponder()
+      }
+    }
+    return false
+  }
+
+  private func firstResponder(in view: UIView) -> UIView? {
+    if view.isFirstResponder {
+      return view
+    }
+    for subview in view.subviews {
+      if let responder = firstResponder(in: subview) {
+        return responder
+      }
+    }
+    return nil
+  }
 }

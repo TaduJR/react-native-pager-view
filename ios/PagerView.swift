@@ -48,6 +48,9 @@ struct PagerView: View {
         if scrollDelegate.originalDelegate == nil {
           scrollDelegate.originalDelegate = collectionView.delegate
           scrollDelegate.delegate = delegate
+          scrollDelegate.onSettled = { [props] position in
+            props.resignFirstResponder(outsidePage: props.page(atScrollPosition: position))
+          }
           // VTabView-style rotation preserves TabView's horizontal collection view.
           scrollDelegate.orientation = .horizontal
           collectionView.delegate = scrollDelegate

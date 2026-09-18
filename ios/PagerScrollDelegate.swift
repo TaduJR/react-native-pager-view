@@ -7,6 +7,7 @@ class PagerScrollDelegate: NSObject, UIScrollViewDelegate, UICollectionViewDeleg
   weak var originalDelegate: UICollectionViewDelegate?
   weak var delegate: PagerViewProviderDelegate?
   var orientation: UICollectionView.ScrollDirection = .horizontal
+  var onSettled: ((Int) -> Void)?
   
   private let handledSelectors: Set<Selector> = [
     #selector(scrollViewDidScroll(_:)),
@@ -45,6 +46,7 @@ class PagerScrollDelegate: NSObject, UIScrollViewDelegate, UICollectionViewDeleg
       let page = Int(round(contentOffset / pageSize))
       let eventData = OnPageScrollEventData(position: Double(page), offset: 0)
       delegate?.onPageScroll(data: eventData)
+      onSettled?(page)
     }
 
     delegate?.onPageScrollStateChanged(state: .idle)
